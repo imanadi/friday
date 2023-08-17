@@ -11,6 +11,12 @@ from langchain.prompts import ChatPromptTemplate
 import os
 memory = ConversationBufferMemory(memory_key="history",input_key="query" ,output_key='answer',return_messages=True)
 
+memory = ConversationBufferMemory(
+    memory_key='chat_history',
+    return_messages=True,
+    output_key='answer'
+)
+
 vectorstore = Chroma(
     persist_directory="store", 
     embedding_function=OpenAIEmbeddings(
@@ -23,33 +29,28 @@ template = """
 Use the following context (delimited by <ctx></ctx>) and the chat history (delimited by <hs></hs>) to answer the question:
 ------
 <ctx>
-You are a software developer bot.
-You must never speculate or provide incorrect answers.
-You should respond to user queries concisely and accurately.
-You should prompt the user for any necessary command inputs when you are returning a response
 {context}
 </ctx>
 ------
 <hs>
-{history}
+{chat_history}
 </hs>
 ------
+You should ask the user to provide inputs (names written in <> brackets) if required when you are returning a command response of question:
 {question}
+for example:
+Question: write a linux command to copy a file
+Answer:  cp <from> <to>, please provide value of <from> and <to>
+Question: write a command to get pod logs 
+Answer:  kubectl logs <podName>, please provide the value of <podName> 
+Question: write a command to ssh into a VM
+Answer:  ssh@<userName> <IP>, please provide the value of <userName> and <IP>
 Answer:
 """
-prompt = PromptTemplate(
-    input_variables=[ "history","context", "question"],
+PROMPT = PromptTemplate(
+    input_variables=[ "chat_history","context", "question"],
     template=template,
 )
-
-chat_template = ChatPromptTemplate.from_messages([
-    """You are a software developer bot.
-You must never speculate or provide incorrect answers.
-You should respond to user queries concisely and accurately.
-You should prompt the user for any necessary command inputs when you are returning a response"""
-])
-
-messages = chat_template
 
 question_generator_chain = LLMChain(llm=AzureOpenAI(
     openai_api_type = "azure",
@@ -57,30 +58,22 @@ question_generator_chain = LLMChain(llm=AzureOpenAI(
     openai_api_base = "https://onehackopenai-westeurope.openai.azure.com",
     engine="gpt-35-turbo",
     model="gpt-3.5-turbo",
-    temperature=0.0,
+    temperature=0.2,
     max_tokens=1000,
-), prompt=prompt)
+), prompt=PROMPT)
 
-qa = RetrievalQA.from_chain_type(
-    llm=AzureOpenAI(
+qa = ConversationalRetrievalChain.from_llm(
+    AzureOpenAI(
         openai_api_type = "azure",
         openai_api_version = "2023-05-15",
         openai_api_base = "https://onehackopenai-westeurope.openai.azure.com",
         engine="gpt-35-turbo",
         model="gpt-3.5-turbo",
-        temperature=0.0,
-        max_tokens=1000,
+        temperature=0.3,
     ),
-    chain_type='stuff',
     retriever=vectorstore.as_retriever(),
-    verbose=False,
-    chain_type_kwargs={
-        "verbose": False,
-        "prompt": prompt,
-        "memory": ConversationBufferMemory(
-            memory_key="history",
-            input_key="question"),
-    }
+    combine_docs_chain_kwargs={"prompt": PROMPT},
+    memory=memory
 )
 
 while True:
