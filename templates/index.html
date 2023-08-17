@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Jarvis</title>
+  <link rel="shortcut icon" href="" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
+  <style>
+    body {
+      background-image: url("{{ url_for('static', filename='jarvis.png') }}");
+      background-size: cover;
+      background-repeat: no-repeat;
+    }
+  </style>
+</head>
+
+<body>
+  <h3>Welcome sir, how can I help you?</h3>
+  <form action="/" method="post">
+    <input type="text" name="question" placeholder="Enter a question" required />
+    <input type="submit" value="Get answer" />
+  </form>
+  {% if result %}
+  <p class="result">{{ result }}</p>
+  {% endif %}
+  <div class="conversation-history">
+    <h4>Conversation History:</h4>
+    <ul>
+      {% for message in conversation_history %}
+        <li>{{ message }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</body>
+
+</html>
