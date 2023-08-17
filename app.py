@@ -5,6 +5,9 @@ from flask import Flask, redirect, render_template, request, url_for
 from details import name, personalDetails
 
 app = Flask(__name__)
+openai.api_type = "azure"
+openai.api_version = "2023-05-15" 
+openai.api_base = "https://onehackopenai-westeurope.openai.azure.com"
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 conversation_history = []
@@ -20,10 +23,11 @@ def index():
         conversation_history.append({"role": "user", "content": question})
 
         # Creating a message list for API input
-        messages = [{"role": "system", "content": loadInfo()}]
+        messages = [{"role": "system", "content": name()}]
         messages.extend(conversation_history)
 
         response = openai.ChatCompletion.create(
+            engine="gpt-35-turbo",
             model="gpt-3.5-turbo",
             messages=messages
         )
